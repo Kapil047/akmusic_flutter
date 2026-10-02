@@ -6,8 +6,7 @@ import '../config/app_constants.dart';
 class CryptoService {
   static final AesGcm _aesGcm = AesGcm.with256bits(nonceLength: 16);
   static final SecretKey _secretKey = SecretKey(hex.decode(AppConstants.cryptoSecretHex));
-
-  /// Decrypts incoming AES-256-GCM payload from backend
+ 
   static Future<dynamic> decryptPayload({
     required String payloadBase64,
     required String ivBase64,

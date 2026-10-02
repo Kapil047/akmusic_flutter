@@ -18,8 +18,9 @@ void main() async {
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.akmusic.channel.audio',
       androidNotificationChannelName: 'AK Music Playback',
-      androidNotificationOngoing: true,
-      androidStopForegroundOnPause: true,
+      androidNotificationIcon: 'mipmap/ic_launcher',
+      androidNotificationOngoing: false,
+      androidStopForegroundOnPause: false,
     ),
   );
 

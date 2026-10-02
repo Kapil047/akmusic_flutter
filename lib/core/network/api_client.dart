@@ -1,4 +1,5 @@
-﻿import 'package:dio/dio.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
 import '../config/app_constants.dart';
@@ -42,19 +43,29 @@ class ApiClient {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          // 1. Add Guest Bearer token for user-specific endpoints
-          if (options.path.contains('/user')) {
-            final token = await _getOrGenerateGuestToken();
-            options.headers['Authorization'] = 'Bearer $token';
+          debugPrint('🌐 [HTTP OUT] >> ${options.method} ${options.baseUrl}${options.path} (Query: ${options.queryParameters})');
+
+          // Attach Authorization header to all requests (except public auth endpoints)
+          const noAuthPaths = ['/auth/login', '/auth/signup', '/auth/guest'];
+          final isNoAuthPath = noAuthPaths.any((p) => options.path.contains(p));
+          if (!isNoAuthPath) {
+            final authToken = await _storage.read(key: 'auth_token');
+            if (authToken != null && authToken.isNotEmpty) {
+              options.headers['Authorization'] = 'Bearer $authToken';
+            } else {
+              final guestToken = await _getOrGenerateGuestToken();
+              options.headers['Authorization'] = 'Bearer guest_$guestToken';
+            }
           }
 
-          // 2. Encrypt outgoing body if present (except raw stream/download)
           if (options.data != null &&
               !options.path.contains('/stream') &&
               !options.path.contains('/download')) {
             try {
               options.data = await CryptoService.encryptPayload(options.data);
+              debugPrint('🔐 [ENCRYPTION] Request body encrypted with AES-256-GCM');
             } catch (e) {
+              debugPrint('❌ [ENCRYPTION ERROR] $e');
               return handler.reject(
                 DioException(
                   requestOptions: options,
@@ -68,7 +79,8 @@ class ApiClient {
         },
         onResponse: (response, handler) async {
           final data = response.data;
-          // Decrypt if server flagged as encrypted
+          debugPrint('✅ [HTTP IN] << Status: ${response.statusCode} from ${response.requestOptions.path}');
+
           if (data is Map && data['encrypted'] == true && data['data'] != null) {
             try {
               final payload = data['data']['payload'] as String;
@@ -81,8 +93,10 @@ class ApiClient {
                 authTagBase64: authTag,
               );
 
+              debugPrint('🔓 [DECRYPTION] AES-256 payload decrypted successfully');
               response.data = decrypted;
             } catch (e) {
+              debugPrint('❌ [DECRYPTION ERROR] Failed to decrypt response: $e');
               return handler.reject(
                 DioException(
                   requestOptions: response.requestOptions,
@@ -96,6 +110,7 @@ class ApiClient {
           return handler.next(response);
         },
         onError: (DioException error, handler) {
+          debugPrint('❌ [HTTP ERROR] << Code: ${error.response?.statusCode}, Error: ${error.message}, Data: ${error.response?.data}');
           if (error.response?.statusCode == 429) {
             return handler.reject(
               DioException(

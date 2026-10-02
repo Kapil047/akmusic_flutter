@@ -1,4 +1,4 @@
-﻿import '../parsers/yt_normalizer.dart';
+import '../parsers/yt_normalizer.dart';
 
 class SongModel {
   final String id;
@@ -17,17 +17,21 @@ class SongModel {
     this.durationSeconds = 0,
   });
 
+  /// Guaranteed Ultra-HD thumbnail URL (800x800 or 720p)
+  String? get highResThumbnail => YtNormalizer.upgradeToHighRes(thumbnailUrl);
+
   /// Factory constructor for direct normalized backend /search results
   factory SongModel.fromSearchJson(Map<String, dynamic> json) {
+    final thumb = json['thumbnail']?.toString() ?? YtNormalizer.extractThumbnail(json['thumbnails']);
     return SongModel(
       id: json['id'] ?? '',
       title: json['title'] ?? 'Unknown Title',
       artist: (json['artists'] is List && (json['artists'] as List).isNotEmpty)
           ? (json['artists'] as List).join(', ')
-          : 'Unknown Artist',
+          : (json['artist']?.toString() ?? 'Unknown Artist'),
       album: json['album'],
       durationSeconds: json['duration'] is int ? json['duration'] : 0,
-      thumbnailUrl: YtNormalizer.extractThumbnail(json['thumbnails']),
+      thumbnailUrl: YtNormalizer.upgradeToHighRes(thumb),
     );
   }
 
@@ -60,7 +64,7 @@ class SongModel {
       title: title,
       artist: artist,
       album: raw['album'] != null ? YtNormalizer.extractText(raw['album']) : null,
-      thumbnailUrl: thumb,
+      thumbnailUrl: YtNormalizer.upgradeToHighRes(thumb),
       durationSeconds: duration,
     );
   }
@@ -71,7 +75,7 @@ class SongModel {
       'title': title,
       'artist': artist,
       'album': album,
-      'thumbnail': thumbnailUrl,
+      'thumbnail': highResThumbnail ?? thumbnailUrl,
       'duration': durationSeconds,
     };
   }

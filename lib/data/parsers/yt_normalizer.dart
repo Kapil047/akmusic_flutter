@@ -1,4 +1,4 @@
-﻿class YtNormalizer {
+class YtNormalizer {
   /// Safely extracts string text from YouTube objects ({text: ...}, runs: [...], or raw string)
   static String extractText(dynamic item, [String defaultValue = '']) {
     if (item == null) return defaultValue;
@@ -17,30 +17,64 @@
     return defaultValue;
   }
 
-  /// Safely extracts best thumbnail URL from array or nested object
+  /// Upgrades any YouTube / Google CDN thumbnail to Ultra-HD (800x800 or 720p)
+  static String? upgradeToHighRes(String? url) {
+    if (url == null || url.trim().isEmpty) return null;
+    var hd = url.trim();
+
+    // 1. Google Usercontent sizing upgrade (=w60-h60 -> =w800-h800)
+    if (hd.contains('googleusercontent.com')) {
+      hd = hd.replaceAll(RegExp(r'=w\d+-h\d+'), '=w800-h800');
+      hd = hd.replaceAll(RegExp(r'=s\d+'), '=s800');
+      if (!hd.contains('=w800-h800') && !hd.contains('=s800')) {
+        hd = hd.contains('?') ? '$hd&w=800&h=800' : '$hd=w800-h800-l90-rj';
+      }
+    }
+
+    // 2. YouTube standard video thumbnail upgrade
+    if (hd.contains('i.ytimg.com/vi/')) {
+      hd = hd.replaceAll('hqdefault.jpg', 'hq720.jpg').replaceAll('mqdefault.jpg', 'hq720.jpg');
+    }
+
+    return hd;
+  }
+
+  /// Safely extracts best thumbnail URL from array or nested object and upgrades to Ultra-HD
   static String? extractThumbnail(dynamic item) {
     if (item == null) return null;
-    
+    String? foundUrl;
+
     // Case 1: thumbnails is direct List [{url: ...}]
     if (item is List && item.isNotEmpty) {
       final last = item.last;
-      if (last is Map && last['url'] != null) return last['url'].toString();
+      if (last is Map && last['url'] != null) {
+        foundUrl = last['url'].toString();
+      } else if (item.first is Map && item.first['url'] != null) {
+        foundUrl = item.first['url'].toString();
+      }
     }
-    
+
     // Case 2: item is Map with contents or thumbnails
-    if (item is Map) {
+    if (foundUrl == null && item is Map) {
       if (item['contents'] != null) {
         return extractThumbnail(item['contents']);
       }
       if (item['thumbnails'] != null) {
         return extractThumbnail(item['thumbnails']);
       }
+      if (item['thumbnail'] != null) {
+        return extractThumbnail(item['thumbnail']);
+      }
       if (item['url'] != null) {
-        return item['url'].toString();
+        foundUrl = item['url'].toString();
       }
     }
 
-    return null;
+    if (foundUrl == null && item is String) {
+      foundUrl = item;
+    }
+
+    return upgradeToHighRes(foundUrl);
   }
 
   /// Parses duration string like "4:22" or "1:02:15" to seconds integer
