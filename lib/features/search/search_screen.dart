@@ -420,7 +420,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               onSubmitted: _performSearch,
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
-                hintText: 'Search songs, artists, albums...',
+                hintText: 'Search songs ...',
                 hintStyle: const TextStyle(color: Colors.white38),
                 prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF6C5CE7)),
                 suffixIcon: isSearchActive
@@ -448,7 +448,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
           ),
 
-          // 2. Filter Chips
+          // 2. Filter Chips (Commented out for unified clean song search architecture)
+          /*
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -466,6 +467,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ],
             ),
           ),
+          */
 
           // 3. Live Suggestions Dropdown (Top 1 Highlighted Card + Rest)
           if (_suggestions.isNotEmpty || _topSuggestion != null)
@@ -581,11 +583,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       ],
                     ),
                     onTap: () {
-                      if (_selectedType == 'playlist' || _selectedType == 'album') {
-                        _openPlaylistSheet(song);
-                      } else {
-                        ref.read(playerControllerProvider.notifier).playSong(song);
-                      }
+                      ref.read(playerControllerProvider.notifier).playSong(song);
                     },
                   );
                 },
